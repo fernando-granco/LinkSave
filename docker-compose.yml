@@ -41,7 +41,11 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -85,7 +89,11 @@ services:
       - ALL
     pids_limit: 512
     healthcheck:
-      test: ["CMD", "node", "-e", "try{const fs=require('fs');const t=Number(fs.readFileSync(process.env.TEMP_DIR+'/.worker-heartbeat','utf8'));process.exit(Date.now()-t<60000?0:1)}catch(e){process.exit(1)}"]
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"try{const fs=require('fs');const t=Number(fs.readFileSync((process.env.TEMP_DIR||'/data/media')+'/.worker-heartbeat','utf8'));process.exit(Date.now()-t<60000?0:1)}catch(e){process.exit(1)}\"",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
