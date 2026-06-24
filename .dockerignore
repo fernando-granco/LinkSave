@@ -1,0 +1,7 @@
+node_modules
+apps/*/node_modules
+apps/*/dist
+.env
+.git
+coverage
+tmp

@@ -1,0 +1,29 @@
+{
+  "name": "family-downloader",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A self-hosted family-friendly web GUI around yt-dlp.",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm-run-all -p dev:api dev:web",
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:worker": "npm --workspace apps/api run dev:worker",
+    "dev:web": "npm --workspace apps/web run dev",
+    "build": "npm --workspaces run build",
+    "test": "npm --workspace apps/api test",
+    "lint": "npm --workspaces run lint"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
