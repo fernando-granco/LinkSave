@@ -11,6 +11,7 @@ import {
   writeInspectResult
 } from './services/inspectQueue.js';
 import { inspectWithYtDlp, downloadWithYtDlp, removeJobTempFiles } from './services/ytDlp.js';
+import { scheduleYtDlpUpdates } from './services/ytDlpUpdater.js';
 import { assertPublicUrl } from './services/urlSafety.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -131,6 +132,7 @@ async function startMaintenance(): Promise<void> {
 
 async function main(): Promise<void> {
   await startMaintenance();
+  scheduleYtDlpUpdates(logger);
   logger.info('worker started');
   while (true) {
     const item = await redis.brpop(inspectQueueKey, downloadQueueKey, 5);

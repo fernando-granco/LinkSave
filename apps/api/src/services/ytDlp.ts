@@ -6,6 +6,7 @@ import type { DownloadJob, VideoMetadata } from '../types.js';
 import { getFormatPreset } from './formatPresets.js';
 import { friendlySourceName } from './urlSafety.js';
 import { safeBaseName } from './filenames.js';
+import { getYtDlp } from './ytDlpUpdater.js';
 
 interface RunResult {
   stdout: string;
@@ -27,7 +28,11 @@ const KILL_GRACE_MS = 5000;
  */
 function runYtDlp(args: string[], options: RunOptions): Promise<RunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const ytDlp = getYtDlp();
+    const child = spawn(ytDlp.command, [...ytDlp.prefixArgs, ...args], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: ytDlp.env ? { ...process.env, ...ytDlp.env } : process.env
+    });
 
     let stdout = '';
     let stderr = '';

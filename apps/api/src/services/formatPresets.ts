@@ -48,25 +48,29 @@ export function getFormatPreset(
   }
 
   const audioQuality = quality as AudioQuality;
-  if (audioQuality === 'mp3') {
+  if (audioQuality === 'm4a') {
+    // Keep the source AAC stream where possible (fast, no re-encode).
     return {
-      args: ['-f', 'ba/bestaudio', '-x', '--audio-format', 'mp3', '--audio-quality', '0'],
-      extension: 'mp3',
-      mimeType: 'audio/mpeg',
-      label: 'MP3 audio'
+      args: ['-f', 'ba[ext=m4a]/ba/bestaudio', '--extract-audio', '--audio-format', 'm4a'],
+      extension: 'm4a',
+      mimeType: 'audio/mp4',
+      label: 'M4A audio (original)'
     };
   }
 
+  // mp3-128 / mp3-192 / mp3-320 — transcode to MP3 at a fixed bitrate.
+  const kbps = audioQuality.slice('mp3-'.length);
   return {
-    args: ['-f', 'ba[ext=m4a]/ba/bestaudio', '--remux-video', 'm4a'],
-    extension: 'm4a',
-    mimeType: 'audio/mp4',
-    label: 'Best audio'
+    args: ['-f', 'ba/bestaudio', '--extract-audio', '--audio-format', 'mp3', '--audio-quality', `${kbps}K`],
+    extension: 'mp3',
+    mimeType: 'audio/mpeg',
+    label: `MP3 ${kbps} kbps`
   };
 }
 
+const videoQualities = new Set<Quality>(['best', '1080p', '720p', '480p']);
+const audioQualities = new Set<Quality>(['m4a', 'mp3-128', 'mp3-192', 'mp3-320']);
+
 export function isQualityAllowed(mode: DownloadMode, quality: Quality): boolean {
-  const video = new Set<Quality>(['best', '1080p', '720p', '480p']);
-  const audio = new Set<Quality>(['mp3', 'best-audio']);
-  return mode === 'video' ? video.has(quality) : audio.has(quality);
+  return mode === 'video' ? videoQualities.has(quality) : audioQualities.has(quality);
 }

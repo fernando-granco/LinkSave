@@ -35,7 +35,7 @@ COPY --from=build /app/apps/api/dist apps/api/dist
 # appuser ownership on first mount (the container runs read-only otherwise).
 RUN groupadd --gid 10001 appuser \
   && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser \
-  && mkdir -p /data/media \
+  && mkdir -p /data/media /data/yt-dlp \
   && chown -R appuser:appuser /app /data
 
 WORKDIR /app/apps/api

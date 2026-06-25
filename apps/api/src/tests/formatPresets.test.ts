@@ -18,13 +18,19 @@ describe('format presets', () => {
 
   it('ignores high-res for fixed resolutions and audio', () => {
     expect(getFormatPreset('video', '720p', true).args.join(' ')).toContain('height<=720');
-    expect(getFormatPreset('audio', 'mp3', true).extension).toBe('mp3');
+    expect(getFormatPreset('audio', 'mp3-320', true).extension).toBe('mp3');
   });
 
-  it('maps audio options without accepting arbitrary choices', () => {
-    expect(getFormatPreset('audio', 'mp3').args).toContain('--audio-format');
-    expect(getFormatPreset('audio', 'best-audio').extension).toBe('m4a');
-    expect(isQualityAllowed('video', 'mp3')).toBe(false);
+  it('maps audio bitrates to fixed MP3 presets', () => {
+    expect(getFormatPreset('audio', 'mp3-128').args.join(' ')).toContain('--audio-quality 128K');
+    expect(getFormatPreset('audio', 'mp3-320').args.join(' ')).toContain('--audio-quality 320K');
+    expect(getFormatPreset('audio', 'mp3-192').extension).toBe('mp3');
+    expect(getFormatPreset('audio', 'm4a').extension).toBe('m4a');
+  });
+
+  it('rejects mismatched or arbitrary choices', () => {
+    expect(isQualityAllowed('video', 'mp3-320')).toBe(false);
     expect(isQualityAllowed('audio', '1080p')).toBe(false);
+    expect(isQualityAllowed('audio', 'mp3-256' as never)).toBe(false);
   });
 });
