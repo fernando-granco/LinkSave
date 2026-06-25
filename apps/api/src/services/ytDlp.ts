@@ -119,7 +119,7 @@ export async function downloadWithYtDlp(
 ): Promise<Required<Pick<DownloadJob, 'filePath' | 'fileName' | 'mimeType' | 'fileSize' | 'metadata'>>> {
   await fs.mkdir(config.tempDir, { recursive: true });
   const metadata = job.metadata || (await inspectWithYtDlp(job.url));
-  const preset = getFormatPreset(job.mode, job.quality);
+  const preset = getFormatPreset(job.mode, job.quality, job.allowHighRes ?? false);
   const outputTemplate = path.join(config.tempDir, `${job.id}.%(ext)s`);
 
   const sizeGuard =

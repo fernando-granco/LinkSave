@@ -13,6 +13,7 @@ function job(overrides: Partial<DownloadJob> = {}): DownloadJob {
     url: 'https://example.com/video',
     mode: 'video',
     quality: 'best',
+    allowHighRes: false,
     status: 'queued',
     createdAt: now,
     updatedAt: now,

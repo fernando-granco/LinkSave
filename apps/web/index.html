@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LinkSave - Family Downloader</title>
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      // Defaults to the OS preference; honors a remembered choice from the toggle.
+      (function () {
+        try {
+          var saved = localStorage.getItem('linksave-theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = saved === 'dark' || ((!saved || saved === 'system') && prefersDark);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

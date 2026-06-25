@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Download, Music, Video, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Download, Music, Video, CheckCircle2, AlertCircle, Sun, Moon, Monitor } from 'lucide-react';
 import './styles.css';
 
 type Mode = 'video' | 'audio';
@@ -60,6 +60,72 @@ function friendlyStatus(status?: JobStatus, inspecting?: boolean): string {
   return 'Could not finish';
 }
 
+type Theme = 'system' | 'light' | 'dark';
+const THEME_STORAGE_KEY = 'linksave-theme';
+const themeOrder: Theme[] = ['system', 'light', 'dark'];
+
+function readStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  } catch {
+    // localStorage may be unavailable (private mode); fall back to system.
+  }
+  return 'system';
+}
+
+/**
+ * Theme preference that defaults to the OS setting. An explicit choice is
+ * remembered and applied by setting `data-theme` on <html>; while on "system"
+ * we follow live OS changes. The same attribute is set pre-paint in index.html
+ * to avoid a flash of the wrong theme on load.
+ */
+function useTheme(): [Theme, () => void] {
+  const [theme, setTheme] = React.useState<Theme>(readStoredTheme);
+
+  React.useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const dark = theme === 'dark' || (theme === 'system' && media.matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    };
+    apply();
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Ignore storage failures; the in-memory choice still applies.
+    }
+    if (theme === 'system') {
+      media.addEventListener('change', apply);
+      return () => media.removeEventListener('change', apply);
+    }
+  }, [theme]);
+
+  const cycle = () => setTheme((current) => themeOrder[(themeOrder.indexOf(current) + 1) % themeOrder.length]);
+  return [theme, cycle];
+}
+
+/** A boolean preference remembered in localStorage (used for the 4K toggle). */
+function useStoredFlag(key: string, fallback = false): [boolean, () => void] {
+  const [value, setValue] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem(key) === 'true';
+    } catch {
+      return fallback;
+    }
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(key, String(value));
+    } catch {
+      // Ignore storage failures; the in-memory value still applies.
+    }
+  }, [key, value]);
+
+  return [value, () => setValue((current) => !current)];
+}
+
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -74,6 +140,8 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 function App() {
+  const [theme, cycleTheme] = useTheme();
+  const [allow4k, toggle4k] = useStoredFlag('linksave-4k');
   const [url, setUrl] = React.useState('');
   const [mode, setMode] = React.useState<Mode>('video');
   const [quality, setQuality] = React.useState<Quality>('best');
@@ -147,7 +215,7 @@ function App() {
     try {
       const result = await api<{ job: Job }>('/api/jobs', {
         method: 'POST',
-        body: JSON.stringify({ url: url.trim(), mode, quality })
+        body: JSON.stringify({ url: url.trim(), mode, quality, allowHighRes: allow4k })
       });
       setJob(result.job);
     } catch (error) {
@@ -161,11 +229,42 @@ function App() {
   return (
     <main className="page">
       <section className="panel" aria-labelledby="title">
-        <div className="topline">
-          <h1 id="title">LinkSave</h1>
-          <strong className="subtitle">Family Downloader</strong>
-          <p>Only download content you are allowed to save.</p>
-        </div>
+        <header className="brand">
+          <span className="brand-mark">
+            <Download size={26} aria-hidden />
+          </span>
+          <div>
+            <h1 id="title">LinkSave</h1>
+            <span className="subtitle">Family Downloader</span>
+          </div>
+          <div className="header-actions">
+            <button
+              type="button"
+              className={`pill-toggle${allow4k ? ' active' : ''}`}
+              onClick={toggle4k}
+              aria-pressed={allow4k}
+              aria-label={`Allow 4K for best quality: ${allow4k ? 'on' : 'off'}`}
+              title={allow4k ? '4K on — "Best" goes up to 4K' : '4K off — "Best" caps at 1080p'}
+            >
+              4K
+            </button>
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={cycleTheme}
+              aria-label={`Theme: ${theme}. Click to switch.`}
+              title={`Theme: ${theme}`}
+            >
+              {theme === 'light' ? (
+                <Sun size={18} aria-hidden />
+              ) : theme === 'dark' ? (
+                <Moon size={18} aria-hidden />
+              ) : (
+                <Monitor size={18} aria-hidden />
+              )}
+            </button>
+          </div>
+        </header>
 
         <label className="input-label" htmlFor="video-url">
           Paste a video link
@@ -198,7 +297,7 @@ function App() {
                 className={quality === option.value ? 'active' : ''}
                 onClick={() => setQuality(option.value)}
               >
-                {option.label}
+                {option.value === 'best' && allow4k ? 'Best · 4K' : option.label}
               </button>
             ))}
           </div>
