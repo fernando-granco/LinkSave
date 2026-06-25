@@ -4,6 +4,17 @@ LinkSave - Family Downloader is a small, self-hosted web app for downloading pub
 
 Only download content you are allowed to save. This project does not implement cookies, account logins, DRM bypassing, CAPTCHA bypassing, or private/restricted content access.
 
+## How it works
+
+1. You paste a public video link. As you type, the app asks the backend to **inspect** it and shows a small preview (title, source, duration) so you know it found the right thing.
+2. You pick **Video** or **Audio** and a quality option. These map to a fixed set of safe yt-dlp presets — your input never becomes command-line flags.
+3. When you press **Download**, the API creates a short-lived job tied to your identity and puts it on a queue.
+4. A separate **worker** process is the only thing that runs `yt-dlp` and FFmpeg. It validates the URL again, downloads the media into a temporary folder, enforces duration/size limits, and marks the job ready.
+5. The browser polls the job and, once it's ready, automatically streams the file to you as a normal download.
+6. The temporary file is deleted as soon as the download finishes (or you disconnect), and a background sweep removes anything left over. There is **no permanent media library** — nothing is kept after you have your file.
+
+Everything runs in Docker: a small web/API container, a worker container, Redis for short-lived job state, and (optionally) Cloudflare Tunnel as the public entrypoint. Only the tunnel is exposed publicly; the app and Redis stay on the internal Docker network.
+
 ## Architecture
 
 - `apps/web`: React + Vite one-page interface with large, plain controls.
@@ -66,18 +77,16 @@ The `cloudflared` service reads the token from the `TUNNEL_TOKEN` environment
 variable (set from `CLOUDFLARED_TOKEN`), so the secret never appears on the
 command line or in `docker inspect`.
 
-## Cloudflare Access
+## Cloudflare Access (optional, recommended)
 
-Create an Access application for your private downloader hostname and allow only the family members who should use it.
+Authentication is optional. The app works on its own (for example on a trusted LAN) with `REQUIRE_CLOUDFLARE_ACCESS=false`. If you want to expose it to the internet, put it behind **Cloudflare Access** so only people you choose can reach it — this is how we run it.
 
-The app **validates the Cloudflare Access JWT** (`Cf-Access-Jwt-Assertion`) on every `/api` and `/download` request: signature against your team's JWKS, plus issuer, audience, and expiry. The plaintext `Cf-Access-Authenticated-User-Email` header is **never trusted on its own**, so any request that reaches the origin without a valid Access token is rejected.
+When enabled, the app validates the Cloudflare Access JWT itself (signature, issuer, audience, expiry); it does not just trust a header. You only need two settings, both required when `REQUIRE_CLOUDFLARE_ACCESS=true`:
 
-Two settings are required (the app refuses to start without them when `REQUIRE_CLOUDFLARE_ACCESS=true`):
+- `CF_ACCESS_TEAM_DOMAIN` — your Zero Trust team domain, e.g. `myteam` (the JWT issuer becomes `https://myteam.cloudflareaccess.com`).
+- `CF_ACCESS_AUD` — the **Application Audience (AUD) tag** from the Access application's *Overview* page.
 
-- `CF_ACCESS_TEAM_DOMAIN` — your Zero Trust team domain, e.g. `myteam` or `myteam.cloudflareaccess.com`. This forms the JWT issuer `https://myteam.cloudflareaccess.com`.
-- `CF_ACCESS_AUD` — the **Application Audience (AUD) tag** shown on the Access application's *Overview* page.
-
-Identity is taken from the validated token's `email` (or `sub`) claim, not from any plaintext header.
+Create the Access application for your hostname and allow only the family members who should use it. That's it — the app reads the signed-in user's email from the validated token.
 
 ## Environment Variables
 

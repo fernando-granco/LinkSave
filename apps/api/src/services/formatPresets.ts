@@ -18,15 +18,32 @@ const videoFormat = (height?: number): string => {
   ].join('/');
 };
 
-export function getFormatPreset(mode: DownloadMode, quality: Quality): FormatPreset {
+// "Best available" ceiling. 4K renditions are usually VP9/AV1, so they are
+// opt-in via allowHighRes; the default keeps files broadly compatible at 1080p.
+const BEST_HEIGHT_DEFAULT = 1080;
+const BEST_HEIGHT_HIGH_RES = 2160;
+
+export function getFormatPreset(
+  mode: DownloadMode,
+  quality: Quality,
+  allowHighRes = false
+): FormatPreset {
   if (mode === 'video') {
     const videoQuality = quality as VideoQuality;
-    const height = videoQuality === 'best' ? undefined : Number.parseInt(videoQuality, 10);
+    const height =
+      videoQuality === 'best'
+        ? allowHighRes
+          ? BEST_HEIGHT_HIGH_RES
+          : BEST_HEIGHT_DEFAULT
+        : Number.parseInt(videoQuality, 10);
     return {
       args: ['-f', videoFormat(height), '--merge-output-format', 'mp4', '--remux-video', 'mp4'],
       extension: 'mp4',
       mimeType: 'video/mp4',
-      label: videoQuality === 'best' ? 'Best available MP4' : `${videoQuality} MP4`
+      label:
+        videoQuality === 'best'
+          ? `Best available MP4 (up to ${allowHighRes ? '4K' : '1080p'})`
+          : `${videoQuality} MP4`
     };
   }
 

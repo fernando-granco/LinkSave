@@ -1,0 +1,120 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    image: linksave-app:latest
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOME: /tmp
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      TEMP_DIR: ${TEMP_DIR:-/data/media}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://download.example.com}
+      REQUIRE_CLOUDFLARE_ACCESS: ${REQUIRE_CLOUDFLARE_ACCESS:-true}
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
+      CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
+      MAX_GLOBAL_CONCURRENT_JOBS: ${MAX_GLOBAL_CONCURRENT_JOBS:-2}
+      MAX_CONCURRENT_JOBS_PER_USER: ${MAX_CONCURRENT_JOBS_PER_USER:-1}
+      MAX_VIDEO_DURATION_SECONDS: ${MAX_VIDEO_DURATION_SECONDS:-7200}
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-2147483648}
+      JOB_EXPIRATION_SECONDS: ${JOB_EXPIRATION_SECONDS:-900}
+      CLEANUP_INTERVAL_SECONDS: ${CLEANUP_INTERVAL_SECONDS:-60}
+      INSPECT_TIMEOUT_MS: ${INSPECT_TIMEOUT_MS:-25000}
+      DOWNLOAD_TIMEOUT_MS: ${DOWNLOAD_TIMEOUT_MS:-1200000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-20}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-1 minute}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - media-tmp:${TEMP_DIR:-/data/media}
+    ports:
+      - "100.119.132.24:3017:3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    user: "10001:10001"
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    image: linksave-worker:latest
+    restart: unless-stopped
+    init: true
+    command: ["node", "dist/worker.js"]
+    environment:
+      NODE_ENV: production
+      HOME: /tmp
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      TEMP_DIR: ${TEMP_DIR:-/data/media}
+      REQUIRE_CLOUDFLARE_ACCESS: ${REQUIRE_CLOUDFLARE_ACCESS:-true}
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
+      CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
+      MAX_GLOBAL_CONCURRENT_JOBS: ${MAX_GLOBAL_CONCURRENT_JOBS:-2}
+      MAX_CONCURRENT_JOBS_PER_USER: ${MAX_CONCURRENT_JOBS_PER_USER:-1}
+      MAX_VIDEO_DURATION_SECONDS: ${MAX_VIDEO_DURATION_SECONDS:-7200}
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-2147483648}
+      JOB_EXPIRATION_SECONDS: ${JOB_EXPIRATION_SECONDS:-900}
+      CLEANUP_INTERVAL_SECONDS: ${CLEANUP_INTERVAL_SECONDS:-60}
+      INSPECT_TIMEOUT_MS: ${INSPECT_TIMEOUT_MS:-25000}
+      DOWNLOAD_TIMEOUT_MS: ${DOWNLOAD_TIMEOUT_MS:-1200000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - media-tmp:${TEMP_DIR:-/data/media}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"try{const fs=require('fs');const t=Number(fs.readFileSync((process.env.TEMP_DIR||'/data/media')+'/.worker-heartbeat','utf8'));process.exit(Date.now()-t<60000?0:1)}catch(e){process.exit(1)}\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    user: "10001:10001"
+
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    volumes:
+      - redis-data:/data
+    expose:
+      - "6379"
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  media-tmp:
+  redis-data:

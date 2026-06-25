@@ -32,6 +32,8 @@ export interface DownloadJob {
   url: string;
   mode: DownloadMode;
   quality: Quality;
+  // When true, a "best" video may go up to 4K; otherwise it is capped at 1080p.
+  allowHighRes: boolean;
   status: JobStatus;
   createdAt: number;
   updatedAt: number;

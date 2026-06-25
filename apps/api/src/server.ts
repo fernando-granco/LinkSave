@@ -29,7 +29,9 @@ const bodySchema = z.object({
 
 const createJobSchema = bodySchema.extend({
   mode: z.enum(['video', 'audio']),
-  quality: z.enum(['best', '1080p', '720p', '480p', 'mp3', 'best-audio'])
+  quality: z.enum(['best', '1080p', '720p', '480p', 'mp3', 'best-audio']),
+  // Opt-in 4K for "best" video; ignored for fixed resolutions and audio.
+  allowHighRes: z.boolean().optional().default(false)
 });
 
 const jobIdSchema = z.object({ id: z.string().min(8).max(64) });
@@ -140,6 +142,7 @@ async function buildServer() {
       url: url.toString(),
       mode: body.mode as DownloadMode,
       quality: body.quality as Quality,
+      allowHighRes: body.allowHighRes,
       status: 'queued',
       createdAt: now,
       updatedAt: now,

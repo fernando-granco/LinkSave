@@ -1,10 +1,66 @@
+/* Theme tokens. Light values are the default; the dark block below overrides
+   them when the operating system asks for a dark appearance. */
 :root {
-  color: #18211f;
-  background: #f8faf7;
+  color-scheme: light dark;
+
+  --bg: #eef1f6;
+  --bg-accent: rgba(99, 102, 241, 0.1);
+  --panel: #ffffff;
+  --panel-border: #e3e8ef;
+  --shadow: 0 20px 55px rgba(15, 23, 42, 0.12);
+
+  --text: #111827;
+  --text-muted: #5b6472;
+
+  --field-bg: #ffffff;
+  --field-border: #cbd2dd;
+
+  --control-bg: #f5f7fa;
+  --control-border: #e1e6ee;
+  --control-text: #2f3947;
+  --control-hover: #eceff5;
+
+  --accent: #4f46e5;
+  --accent-strong: #4338ca;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(79, 70, 229, 0.12);
+
+  --danger: #c2410c;
+
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Dark theme. `data-theme` is set on <html> by the app (and pre-paint in
+   index.html), defaulting to the OS preference but overridable by the toggle. */
+:root[data-theme='dark'] {
+  --bg: #0b1120;
+  --bg-accent: rgba(129, 140, 248, 0.12);
+  --panel: #131b2c;
+  --panel-border: #243049;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+
+  --text: #e8ecf4;
+  --text-muted: #98a2b6;
+
+  --field-bg: #0e1626;
+  --field-border: #334262;
+
+  --control-bg: #1a2438;
+  --control-border: #2c3a57;
+  --control-text: #d4dbe8;
+  --control-hover: #213050;
+
+  --accent: #818cf8;
+  --accent-strong: #a5b4fc;
+  --accent-contrast: #0b1120;
+  --accent-soft: rgba(129, 140, 248, 0.18);
+
+  --danger: #fb923c;
 }
 
 * {
@@ -25,28 +81,21 @@ input {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 32px 20px;
+  padding: 40px 20px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0)),
-    #eef4ef;
+    radial-gradient(1200px 600px at 50% -10%, var(--bg-accent), transparent 70%),
+    var(--bg);
 }
 
 .panel {
-  width: min(820px, 100%);
+  width: min(720px, 100%);
   display: grid;
-  gap: 22px;
+  gap: 26px;
   padding: clamp(24px, 5vw, 44px);
-  border: 1px solid #d8e1db;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 18px 60px rgba(29, 46, 40, 0.12);
-}
-
-.topline {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: end;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
 }
 
 h1,
@@ -55,52 +104,134 @@ p {
   margin: 0;
 }
 
+/* Brand / header */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Semi-hidden header toggles (4K and theme): low-key until hovered or focused. */
+.header-actions {
+  margin-left: auto;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  opacity: 1;
+  background: var(--control-hover);
+  color: var(--text);
+}
+
+.pill-toggle {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.pill-toggle:hover,
+.pill-toggle:focus-visible {
+  opacity: 1;
+}
+
+/* When 4K is on, the pill is clearly active so the state is visible at a glance. */
+.pill-toggle.active {
+  opacity: 1;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.theme-toggle:focus-visible,
+.pill-toggle:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: var(--accent-contrast);
+  flex-shrink: 0;
+}
+
 h1 {
-  font-size: clamp(2.1rem, 3vw, 3.3rem);
-  line-height: 1.02;
+  font-size: 1.9rem;
+  line-height: 1.1;
   font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
   display: block;
-  margin-top: 8px;
-  color: #126c53;
-  font-size: 1.15rem;
-  font-weight: 800;
-}
-
-.topline p {
-  max-width: 260px;
-  color: #53605b;
+  margin-top: 2px;
+  color: var(--text-muted);
   font-size: 1rem;
-  line-height: 1.45;
-  text-align: right;
+  font-weight: 600;
 }
 
 .input-label {
-  font-size: 1.35rem;
-  font-weight: 750;
+  font-size: 1.05rem;
+  font-weight: 650;
 }
 
 .url-input {
   width: 100%;
-  min-height: 72px;
-  border: 2px solid #87948d;
-  border-radius: 8px;
-  padding: 0 20px;
-  font-size: 1.35rem;
-  color: #121817;
+  min-height: 60px;
+  border: 1px solid var(--field-border);
+  border-radius: 12px;
+  padding: 0 18px;
+  font-size: 1.15rem;
+  color: var(--text);
+  background: var(--field-bg);
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.url-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
 }
 
 .url-input:focus {
-  border-color: #126c53;
-  box-shadow: 0 0 0 4px rgba(18, 108, 83, 0.16);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .controls {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .segmented,
@@ -114,19 +245,20 @@ h1 {
 }
 
 .choices {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
 }
 
 .segmented button,
 .choices button {
-  min-height: 58px;
-  border: 1px solid #b7c2bd;
-  border-radius: 8px;
-  background: #f7faf8;
-  color: #25302d;
-  font-size: 1.08rem;
-  font-weight: 700;
+  min-height: 52px;
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  background: var(--control-bg);
+  color: var(--control-text);
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .segmented button {
@@ -136,23 +268,36 @@ h1 {
   gap: 10px;
 }
 
+.segmented button:hover,
+.choices button:hover {
+  background: var(--control-hover);
+}
+
 .segmented button.active,
 .choices button.active {
-  background: #126c53;
-  border-color: #126c53;
-  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* Keyboard focus visibility for accessibility */
+.segmented button:focus-visible,
+.choices button:focus-visible,
+.download-button:focus-visible,
+.ready-link:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .preview {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 170px 1fr;
   gap: 18px;
   align-items: center;
-  min-height: 116px;
   padding: 16px;
-  border: 1px solid #d8e1db;
-  border-radius: 8px;
-  background: #fbfcfb;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--control-bg);
 }
 
 .preview img,
@@ -160,84 +305,92 @@ h1 {
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 6px;
-  background: #dfe8e3;
+  border-radius: 10px;
+  background: var(--control-hover);
 }
 
 .source {
-  color: #126c53;
-  font-size: 0.95rem;
-  font-weight: 800;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .preview h2 {
-  margin-top: 4px;
-  font-size: 1.28rem;
-  line-height: 1.25;
+  margin-top: 6px;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  font-weight: 700;
 }
 
 .preview p {
   margin-top: 8px;
-  color: #596661;
-  font-size: 1rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
 }
 
 .status {
-  min-height: 36px;
+  min-height: 28px;
   display: flex;
   gap: 10px;
   align-items: center;
-  color: #3d4a45;
-  font-size: 1.12rem;
-  font-weight: 650;
+  color: var(--text-muted);
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.status svg {
+  flex-shrink: 0;
 }
 
 .download-button {
-  min-height: 72px;
+  min-height: 60px;
   display: inline-flex;
   justify-content: center;
   align-items: center;
   gap: 12px;
   border: 0;
-  border-radius: 8px;
-  background: #d54b2a;
-  color: #ffffff;
-  font-size: 1.35rem;
-  font-weight: 850;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: var(--accent-contrast);
+  font-size: 1.2rem;
+  font-weight: 750;
   cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+.download-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.download-button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .download-button:disabled {
   cursor: not-allowed;
-  background: #a9b4af;
+  background: var(--control-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--control-border);
 }
 
 .ready-link {
   justify-self: center;
-  color: #126c53;
-  font-size: 1.05rem;
-  font-weight: 800;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
 }
 
-@media (max-width: 720px) {
+.ready-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
   .page {
     place-items: start center;
     padding: 18px;
-  }
-
-  .topline {
-    display: grid;
-    align-items: start;
-  }
-
-  .topline p {
-    max-width: none;
-    text-align: left;
-  }
-
-  .choices {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .preview {
