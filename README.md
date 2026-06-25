@@ -106,9 +106,28 @@ Create the Access application for your hostname and allow only the family member
 | `CLEANUP_INTERVAL_SECONDS` | Temporary file cleanup interval | `60` |
 | `INSPECT_TIMEOUT_MS` | Link inspection wait time | `25000` |
 | `DOWNLOAD_TIMEOUT_MS` | Hard limit before yt-dlp is killed | `1200000` |
+| `ALLOW_4K` | Offer 4K in the app (else "Best" caps at 1080p) | `true` |
+| `YT_DLP_AUTO_UPDATE` | Keep yt-dlp current automatically | `true` |
+| `YT_DLP_DIR` | Writable volume for the auto-updated yt-dlp | `/data/yt-dlp` |
 | `RATE_LIMIT_MAX` | API requests per window | `20` |
 | `RATE_LIMIT_WINDOW` | Rate limit window | `1 minute` |
 | `CLOUDFLARED_TOKEN` | Cloudflare Tunnel token | required |
+
+## Quality options
+
+The main screen stays deliberately simple: paste a link, choose **Video** or **Audio**, pick a size. Less common settings live behind the small gear icon (a "semi-hidden" menu) so they aren't changed by accident:
+
+- **Appearance** — Auto (follows the device), Light, or Dark.
+- **Best video quality** — whether "Best" tops out at 1080p (broadly compatible) or 4K. Hidden entirely when `ALLOW_4K=false`.
+- **MP3 quality** — 128 / 192 / 320 kbps.
+
+Audio offers **MP3** (re-encoded at the chosen bitrate) or **M4A** (keeps the original AAC stream, no re-encode). Note that 4K video is usually VP9/AV1 placed in an MP4 container — fine in modern players, occasionally fussy in older ones — which is why it's opt-in.
+
+## Staying up to date ("set and forget")
+
+`yt-dlp` is the part that needs regular updates, because sites change their players. With `YT_DLP_AUTO_UPDATE=true` (the default) the worker updates `yt-dlp` on startup and once a day into the `ytdlp` volume, and **falls back to the version baked into the image** if an update can't be fetched or fails to run — so downloads keep working either way. You can pin the built-in version with `YT_DLP_AUTO_UPDATE=false`.
+
+FFmpeg is not auto-updated and doesn't need to be: it's a stable media tool that isn't affected by site changes. It updates when you rebuild the image (`docker compose build --pull`). Updating the base image and `cloudflared` is also just a periodic rebuild — a tool like Watchtower can automate that if you want zero-touch.
 
 ## Security Model
 
@@ -120,12 +139,13 @@ Create the Access application for your hostname and allow only the family member
 - User input never becomes command-line flags. UI choices map to fixed backend format presets; the URL is always passed after `--`.
 - URL validation rejects non-http(s) schemes, credentials in URLs, localhost/`.local`, and private, loopback, link-local, carrier-grade-NAT, unique-local, multicast, and reserved IP ranges (IPv4 and IPv6, including IPv4-mapped IPv6 such as the cloud metadata address).
 - yt-dlp/FFmpeg run under a hard wall-clock timeout (SIGTERM then SIGKILL) with an early `--max-filesize` guard, so a hung or oversized download cannot wedge a slot or fill the disk.
-- Containers run as a non-root user with `no-new-privileges`, all Linux capabilities dropped, and a read-only root filesystem (only the media volume and a `tmpfs` `/tmp` are writable).
+- Containers run as a non-root user with `no-new-privileges`, all Linux capabilities dropped, and a read-only root filesystem (only the media volume, the `ytdlp` update volume, and a `tmpfs` `/tmp` are writable).
 
 ### Known residual risks
 
 - **SSRF via redirects / DNS rebinding:** the API validates the submitted URL and its resolved addresses, but yt-dlp performs its own DNS resolution and follows redirects, which this app does not intercept. A hostile site could in principle redirect to, or re-resolve to, an internal address. The container's dropped capabilities, read-only filesystem, and (recommended) isolated Docker network limit the blast radius. For stronger protection, place the worker on a network namespace with no route to internal services / the metadata endpoint.
-- This project does not claim to be perfectly secure. Keep `yt-dlp` and base images updated.
+- **Auto-update trust:** when `YT_DLP_AUTO_UPDATE` is on, the worker installs the latest `yt-dlp` from PyPI at runtime (the same source the image build uses). This trades a little supply-chain surface for staying current; set it to `false` to pin the built-in version if you prefer.
+- This project does not claim to be perfectly secure. Keep base images updated.
 
 ## Limitations
 

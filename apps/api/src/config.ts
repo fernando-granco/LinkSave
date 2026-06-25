@@ -41,7 +41,11 @@ const schema = z
     inspectTimeoutMs: intFromString(25000),
     downloadTimeoutMs: intFromString(1_200_000),
     rateLimitMax: intFromString(20),
-    rateLimitWindow: z.string().default('1 minute')
+    rateLimitWindow: z.string().default('1 minute'),
+    allow4k: boolFromString,
+    ytDlpAutoUpdate: boolFromString,
+    ytDlpDir: z.string().default('/data/yt-dlp'),
+    ytDlpUpdateIntervalHours: intFromString(24)
   })
   .superRefine((value, ctx) => {
     // Fail closed: if Cloudflare Access is required, we must be able to verify
@@ -85,7 +89,11 @@ export const config = schema.parse({
   inspectTimeoutMs: process.env.INSPECT_TIMEOUT_MS,
   downloadTimeoutMs: process.env.DOWNLOAD_TIMEOUT_MS,
   rateLimitMax: process.env.RATE_LIMIT_MAX,
-  rateLimitWindow: process.env.RATE_LIMIT_WINDOW
+  rateLimitWindow: process.env.RATE_LIMIT_WINDOW,
+  allow4k: process.env.ALLOW_4K,
+  ytDlpAutoUpdate: process.env.YT_DLP_AUTO_UPDATE,
+  ytDlpDir: process.env.YT_DLP_DIR,
+  ytDlpUpdateIntervalHours: process.env.YT_DLP_UPDATE_INTERVAL_HOURS
 });
 
 export type AppConfig = typeof config;

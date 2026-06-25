@@ -27,6 +27,7 @@ services:
       DOWNLOAD_TIMEOUT_MS: ${DOWNLOAD_TIMEOUT_MS:-1200000}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-20}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-1 minute}
+      ALLOW_4K: ${ALLOW_4K:-true}
     depends_on:
       redis:
         condition: service_healthy
@@ -75,11 +76,15 @@ services:
       CLEANUP_INTERVAL_SECONDS: ${CLEANUP_INTERVAL_SECONDS:-60}
       INSPECT_TIMEOUT_MS: ${INSPECT_TIMEOUT_MS:-25000}
       DOWNLOAD_TIMEOUT_MS: ${DOWNLOAD_TIMEOUT_MS:-1200000}
+      ALLOW_4K: ${ALLOW_4K:-true}
+      YT_DLP_AUTO_UPDATE: ${YT_DLP_AUTO_UPDATE:-true}
+      YT_DLP_DIR: ${YT_DLP_DIR:-/data/yt-dlp}
     depends_on:
       redis:
         condition: service_healthy
     volumes:
       - media-tmp:${TEMP_DIR:-/data/media}
+      - ytdlp:${YT_DLP_DIR:-/data/yt-dlp}
     read_only: true
     tmpfs:
       - /tmp
@@ -118,3 +123,4 @@ services:
 volumes:
   media-tmp:
   redis-data:
+  ytdlp:

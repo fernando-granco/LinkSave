@@ -29,7 +29,7 @@ const bodySchema = z.object({
 
 const createJobSchema = bodySchema.extend({
   mode: z.enum(['video', 'audio']),
-  quality: z.enum(['best', '1080p', '720p', '480p', 'mp3', 'best-audio']),
+  quality: z.enum(['best', '1080p', '720p', '480p', 'm4a', 'mp3-128', 'mp3-192', 'mp3-320']),
   // Opt-in 4K for "best" video; ignored for fixed resolutions and audio.
   allowHighRes: z.boolean().optional().default(false)
 });
@@ -117,6 +117,12 @@ async function buildServer() {
     }
   });
 
+  // Tells the UI which optional features to show (e.g. whether to offer 4K).
+  app.get('/api/options', async (request) => {
+    requireIdentity(request);
+    return { allow4k: config.allow4k };
+  });
+
   app.post('/api/inspect', async (request) => {
     const user = requireIdentity(request);
     const body = bodySchema.parse(request.body);
@@ -142,7 +148,8 @@ async function buildServer() {
       url: url.toString(),
       mode: body.mode as DownloadMode,
       quality: body.quality as Quality,
-      allowHighRes: body.allowHighRes,
+      // 4K is enforced server-side: ignore the client's request when disabled.
+      allowHighRes: config.allow4k && body.allowHighRes,
       status: 'queued',
       createdAt: now,
       updatedAt: now,

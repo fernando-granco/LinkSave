@@ -1,6 +1,6 @@
 export type DownloadMode = 'video' | 'audio';
 export type VideoQuality = 'best' | '1080p' | '720p' | '480p';
-export type AudioQuality = 'mp3' | 'best-audio';
+export type AudioQuality = 'm4a' | 'mp3-128' | 'mp3-192' | 'mp3-320';
 export type Quality = VideoQuality | AudioQuality;
 
 export type JobStatus =
