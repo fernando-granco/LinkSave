@@ -439,13 +439,34 @@ h1 {
   outline-offset: 2px;
 }
 
+/* On phones the panel becomes the screen: no card, no outer background. */
 @media (max-width: 560px) {
   .page {
-    place-items: start center;
-    padding: 16px;
+    padding: 0;
+    place-items: stretch;
+    background: var(--panel);
+  }
+
+  .panel {
+    width: 100%;
+    min-height: 100dvh;
+    align-content: start;
+    gap: 20px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: calc(18px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .brand {
+    margin-bottom: 2px;
   }
 
   .preview {
     grid-template-columns: 84px 1fr;
+  }
+
+  .download-button {
+    min-height: 62px;
   }
 }

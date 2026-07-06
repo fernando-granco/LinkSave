@@ -8,7 +8,9 @@ import { downloadQueueKey } from './services/downloadQueue.js';
 import {
   inspectQueueKey,
   readInspectRequest,
-  writeInspectResult
+  writeInspectResult,
+  cacheMetadata,
+  readCachedMetadata
 } from './services/inspectQueue.js';
 import { inspectWithYtDlp, downloadWithYtDlp, removeJobTempFiles } from './services/ytDlp.js';
 import { scheduleYtDlpUpdates } from './services/ytDlpUpdater.js';
@@ -32,6 +34,7 @@ async function processInspect(id: string): Promise<void> {
     // worker is the process that actually reaches the network.
     await assertPublicUrl(request.url);
     const metadata = await inspectWithYtDlp(request.url);
+    await cacheMetadata(redis, request.url, metadata);
     await writeInspectResult(redis, id, { ok: true, metadata });
   } catch (error) {
     await writeInspectResult(redis, id, {
@@ -53,6 +56,12 @@ async function processDownload(id: string): Promise<void> {
 
   try {
     await assertPublicUrl(job.url);
+
+    // Reuse a recent preview's metadata (duration limit was already checked
+    // there) instead of inspecting the same URL twice.
+    if (!job.metadata) {
+      job.metadata = await readCachedMetadata(redis, job.url);
+    }
 
     job.status = 'downloading';
     await persist();
@@ -130,21 +139,35 @@ async function startMaintenance(): Promise<void> {
   }, config.cleanupIntervalSeconds * 1000).unref();
 }
 
+/**
+ * Consume one queue forever on its own dedicated Redis connection (BRPOP blocks
+ * the connection it runs on, so each loop needs its own). Inspections and
+ * downloads run in separate loops so a long download never delays link
+ * previews for other users.
+ */
+async function runQueueLoop(queueKey: string, handler: (id: string) => Promise<void>): Promise<never> {
+  const connection = createRedis();
+  while (true) {
+    try {
+      const item = await connection.brpop(queueKey, 5);
+      if (!item) continue;
+      await handler(item[1]);
+    } catch (error) {
+      logger.error({ err: error, queue: queueKey }, 'unexpected worker error');
+      // Brief pause so a persistent failure (e.g. Redis down) cannot hot-loop.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+}
+
 async function main(): Promise<void> {
   await startMaintenance();
   scheduleYtDlpUpdates(logger);
   logger.info('worker started');
-  while (true) {
-    const item = await redis.brpop(inspectQueueKey, downloadQueueKey, 5);
-    if (!item) continue;
-    const [queue, id] = item;
-    try {
-      if (queue === inspectQueueKey) await processInspect(id);
-      if (queue === downloadQueueKey) await processDownload(id);
-    } catch (error) {
-      logger.error({ err: error, queue, jobId: id }, 'unexpected worker error');
-    }
-  }
+  await Promise.all([
+    runQueueLoop(inspectQueueKey, processInspect),
+    runQueueLoop(downloadQueueKey, processDownload)
+  ]);
 }
 
 main().catch((error) => {

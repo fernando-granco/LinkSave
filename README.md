@@ -109,7 +109,7 @@ Create the Access application for your hostname and allow only the family member
 | `ALLOW_4K` | Offer 4K in the app (else "Best" caps at 1080p) | `true` |
 | `YT_DLP_AUTO_UPDATE` | Keep yt-dlp current automatically | `true` |
 | `YT_DLP_DIR` | Writable volume for the auto-updated yt-dlp | `/data/yt-dlp` |
-| `RATE_LIMIT_MAX` | API requests per window | `20` |
+| `RATE_LIMIT_MAX` | API requests per window (keep above ~40; the page polls status every 2 s) | `60` |
 | `RATE_LIMIT_WINDOW` | Rate limit window | `1 minute` |
 | `CLOUDFLARED_TOKEN` | Cloudflare Tunnel token | required |
 
@@ -150,7 +150,7 @@ FFmpeg is not auto-updated and doesn't need to be: it's a stable media tool that
 ## Limitations
 
 - One video at a time per user by default.
-- A single worker processes link inspection and downloads sequentially, so while one download runs, new link previews wait their turn. This keeps a small VPS predictable; run more `worker` replicas if you need more throughput.
+- The worker processes downloads one at a time (link previews run in a separate loop, so they stay responsive while a download is in progress). Run more `worker` replicas if you need more download throughput.
 - Playlists are deliberately disabled.
 - No retained download library or history.
 - No cookies, private account sessions, DRM bypassing, or CAPTCHA bypassing.

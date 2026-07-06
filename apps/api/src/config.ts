@@ -40,7 +40,9 @@ const schema = z
     cleanupIntervalSeconds: intFromString(60),
     inspectTimeoutMs: intFromString(25000),
     downloadTimeoutMs: intFromString(1_200_000),
-    rateLimitMax: intFromString(20),
+    // Must comfortably exceed the UI's status polling (~30 requests/minute
+    // during an active download) or users get rate-limit errors mid-download.
+    rateLimitMax: intFromString(60),
     rateLimitWindow: z.string().default('1 minute'),
     allow4k: boolFromString,
     ytDlpAutoUpdate: boolFromString,

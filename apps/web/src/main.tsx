@@ -323,7 +323,7 @@ function App() {
         setMessage(error instanceof Error ? error.message : 'I lost track of that download.');
         window.clearInterval(timer);
       }
-    }, 1200);
+    }, 2000);
     return () => window.clearInterval(timer);
   }, [job]);
 

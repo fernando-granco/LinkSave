@@ -1,11 +1,26 @@
 import { nanoid } from 'nanoid';
+import { createHash } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import { config } from '../config.js';
 import type { UserIdentity, VideoMetadata } from '../types.js';
 
 const requestKey = (id: string) => `fd:inspect:req:${id}`;
 const resultKey = (id: string) => `fd:inspect:result:${id}`;
+const metadataKey = (url: string) => `fd:meta:${createHash('sha256').update(url).digest('hex')}`;
 export const inspectQueueKey = 'fd:queue:inspect';
+
+// Cache successful inspections briefly so a download that follows a preview
+// does not have to inspect the same URL twice.
+const METADATA_CACHE_SECONDS = 600;
+
+export async function cacheMetadata(redis: Redis, url: string, metadata: VideoMetadata): Promise<void> {
+  await redis.set(metadataKey(url), JSON.stringify(metadata), 'EX', METADATA_CACHE_SECONDS);
+}
+
+export async function readCachedMetadata(redis: Redis, url: string): Promise<VideoMetadata | undefined> {
+  const raw = await redis.get(metadataKey(url));
+  return raw ? (JSON.parse(raw) as VideoMetadata) : undefined;
+}
 
 export interface InspectResult {
   ok: boolean;
