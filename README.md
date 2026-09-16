@@ -1,170 +1,81 @@
-# LinkSave - Family Downloader
+# LinkSave
 
-LinkSave - Family Downloader is a small, self-hosted web app for downloading public videos through a simple browser UI. It is meant for trusted family use behind Cloudflare Access: someone opens your private downloader URL, pastes a public link, chooses Video or Audio, and receives a normal browser file download.
+LinkSave is a small, self-hosted app for downloading public videos or audio from a browser. Paste a link, choose a format and quality, and download the file.
 
-Only download content you are allowed to save. This project does not implement cookies, account logins, DRM bypassing, CAPTCHA bypassing, or private/restricted content access.
+It is designed for personal or family use, either on a trusted network or behind Cloudflare Access.
 
-## How it works
+> Only download content you have permission to save. LinkSave does not support private accounts, cookies, DRM-protected media, or CAPTCHA bypassing.
 
-1. You paste a public video link. As you type, the app asks the backend to **inspect** it and shows a small preview (title, source, duration) so you know it found the right thing.
-2. You pick **Video** or **Audio** and a quality option. These map to a fixed set of safe yt-dlp presets — your input never becomes command-line flags.
-3. When you press **Download**, the API creates a short-lived job tied to your identity and puts it on a queue.
-4. A separate **worker** process is the only thing that runs `yt-dlp` and FFmpeg. It validates the URL again, downloads the media into a temporary folder, enforces duration/size limits, and marks the job ready.
-5. The browser polls the job and, once it's ready, automatically streams the file to you as a normal download.
-6. The temporary file is deleted as soon as the download finishes (or you disconnect), and a background sweep removes anything left over. There is **no permanent media library** — nothing is kept after you have your file.
+## Screenshots
 
-Everything runs in Docker: a small web/API container, a worker container, Redis for short-lived job state, and (optionally) Cloudflare Tunnel as the public entrypoint. Only the tunnel is exposed publicly; the app and Redis stay on the internal Docker network.
+<p align="center">
+  <img src="screenshot0.png" alt="LinkSave download screen" width="48%">
+  <img src="screenshot1.png" alt="LinkSave settings" width="48%">
+</p>
 
-## Architecture
+## Features
 
-- `apps/web`: React + Vite one-page interface with large, plain controls.
-- `apps/api`: Fastify API that validates Cloudflare Access JWTs, creates short-lived jobs, authorizes download access, and serves the built frontend.
-- `worker`: the same API image running `node dist/worker.js`; it is the only process that runs `yt-dlp` and FFmpeg.
-- `redis`: short-lived job status, queues, ownership checks, and concurrency tracking.
-- `cloudflared`: Cloudflare Tunnel entrypoint. The app container exposes port `3000` only to the Docker network.
+- Video and audio downloads powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- MP4, MP3, and M4A output
+- Optional 4K downloads
+- Link previews before downloading
+- Temporary files are removed after download or expiry
+- Per-user and global download limits
+- Optional Cloudflare Access authentication
 
-Temporary media files are stored in the `media-tmp` Docker volume and are deleted after download, cancellation, failure, or expiry cleanup.
+## Run with Docker
 
-## Local Development
-
-Requirements:
-
-- Node.js 20+
-- Redis
-- `yt-dlp`
-- FFmpeg
+You will need Docker and a Cloudflare Tunnel.
 
 ```bash
+git clone https://github.com/fernando-granco/LinkSave.git
+cd LinkSave
 cp .env.example .env
-npm install
-npm --workspace apps/api run dev
-npm --workspace apps/api run dev:worker
-npm --workspace apps/web run dev
 ```
 
-For local development, set this in `.env`:
+Edit `.env` and set at least:
 
-```bash
-REQUIRE_CLOUDFLARE_ACCESS=false
-REDIS_URL=redis://127.0.0.1:6379
+```env
+PUBLIC_BASE_URL=https://download.example.com
+CLOUDFLARED_TOKEN=your-tunnel-token
+CF_ACCESS_TEAM_DOMAIN=your-team-name
+CF_ACCESS_AUD=your-access-application-audience
 ```
 
-Open `http://localhost:5173`. The Vite server proxies `/api` and `/download` to the API server.
-
-## Docker Compose Deployment
-
-On a small VPS:
+Then start the app:
 
 ```bash
-cp .env.example .env
-# Edit .env
 docker compose up -d --build
 ```
 
-The Compose file intentionally does not publish the app or Redis ports. Cloudflare Tunnel reaches the app through the internal Docker network.
+The Compose setup runs the web app, API, download worker, Redis, and Cloudflare Tunnel. The app and Redis are not exposed directly to the internet.
 
-## Cloudflare Tunnel
+## Configuration
 
-1. In Cloudflare Zero Trust, create a named tunnel.
-2. Copy the tunnel token into `.env` as `CLOUDFLARED_TOKEN`.
-3. Add a public hostname:
-   - Hostname: your private downloader hostname
-   - Service type: `HTTP`
-   - Service URL: `http://app:3000`
-4. Start Docker Compose.
+Common settings are listed below. See [.env.example](.env.example) for every option.
 
-The `cloudflared` service reads the token from the `TUNNEL_TOKEN` environment
-variable (set from `CLOUDFLARED_TOKEN`), so the secret never appears on the
-command line or in `docker inspect`.
-
-## Cloudflare Access (optional, recommended)
-
-Authentication is optional. The app works on its own (for example on a trusted LAN) with `REQUIRE_CLOUDFLARE_ACCESS=false`. If you want to expose it to the internet, put it behind **Cloudflare Access** so only people you choose can reach it — this is how we run it.
-
-When enabled, the app validates the Cloudflare Access JWT itself (signature, issuer, audience, expiry); it does not just trust a header. You only need two settings, both required when `REQUIRE_CLOUDFLARE_ACCESS=true`:
-
-- `CF_ACCESS_TEAM_DOMAIN` — your Zero Trust team domain, e.g. `myteam` (the JWT issuer becomes `https://myteam.cloudflareaccess.com`).
-- `CF_ACCESS_AUD` — the **Application Audience (AUD) tag** from the Access application's *Overview* page.
-
-Create the Access application for your hostname and allow only the family members who should use it. That's it — the app reads the signed-in user's email from the validated token.
-
-## Environment Variables
-
-| Name | Purpose | Default |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `PUBLIC_BASE_URL` | Public app URL | `https://download.example.com` |
-| `REQUIRE_CLOUDFLARE_ACCESS` | Require & validate Cloudflare Access JWTs | `true` |
-| `CF_ACCESS_TEAM_DOMAIN` | Zero Trust team domain (JWT issuer) | required when Access is on |
-| `CF_ACCESS_AUD` | Access application Audience (AUD) tag | required when Access is on |
-| `REDIS_URL` | Redis connection string | `redis://redis:6379` |
-| `TEMP_DIR` | Temporary media directory in containers | `/data/media` |
-| `MAX_GLOBAL_CONCURRENT_JOBS` | Total active jobs allowed | `2` |
-| `MAX_CONCURRENT_JOBS_PER_USER` | Active jobs per signed-in user | `1` |
-| `MAX_VIDEO_DURATION_SECONDS` | Maximum inspected video duration | `7200` |
-| `MAX_FILE_SIZE_BYTES` | Maximum completed file size | `2147483648` |
-| `JOB_EXPIRATION_SECONDS` | Job/download URL lifetime | `900` |
-| `CLEANUP_INTERVAL_SECONDS` | Temporary file cleanup interval | `60` |
-| `INSPECT_TIMEOUT_MS` | Link inspection wait time | `25000` |
-| `DOWNLOAD_TIMEOUT_MS` | Hard limit before yt-dlp is killed | `1200000` |
-| `ALLOW_4K` | Offer 4K in the app (else "Best" caps at 1080p) | `true` |
-| `YT_DLP_AUTO_UPDATE` | Keep yt-dlp current automatically | `true` |
-| `YT_DLP_DIR` | Writable volume for the auto-updated yt-dlp | `/data/yt-dlp` |
-| `RATE_LIMIT_MAX` | API requests per window (keep above ~40; the page polls status every 2 s) | `60` |
-| `RATE_LIMIT_WINDOW` | Rate limit window | `1 minute` |
-| `CLOUDFLARED_TOKEN` | Cloudflare Tunnel token | required |
+| `REQUIRE_CLOUDFLARE_ACCESS` | `true` | Require a valid Cloudflare Access login |
+| `MAX_GLOBAL_CONCURRENT_JOBS` | `2` | Maximum active downloads across all users |
+| `MAX_CONCURRENT_JOBS_PER_USER` | `1` | Maximum active downloads per user |
+| `MAX_VIDEO_DURATION_SECONDS` | `7200` | Longest allowed video |
+| `MAX_FILE_SIZE_BYTES` | `2147483648` | Largest allowed file (2 GB) |
+| `JOB_EXPIRATION_SECONDS` | `900` | How long completed downloads remain available |
+| `ALLOW_4K` | `true` | Show the 4K quality option |
+| `YT_DLP_AUTO_UPDATE` | `true` | Update yt-dlp on worker startup and once a day |
 
-## Quality options
+## Notes
 
-The main screen stays deliberately simple: paste a link, choose **Video** or **Audio**, pick a size. Less common settings live behind the small gear icon (a "semi-hidden" menu) so they aren't changed by accident:
+- Playlists are disabled.
+- Downloads are processed one at a time per worker.
+- Media files are temporary; LinkSave is not a media library.
+- URL checks block local and private network addresses, but no self-hosted downloader should be treated as risk-free. Keep the app private and its images up to date.
 
-- **Appearance** — Auto (follows the device), Light, or Dark.
-- **Best video quality** — whether "Best" tops out at 1080p (broadly compatible) or 4K. Hidden entirely when `ALLOW_4K=false`.
-- **MP3 quality** — 128 / 192 / 320 kbps.
+## Security
 
-Audio offers **MP3** (re-encoded at the chosen bitrate) or **M4A** (keeps the original AAC stream, no re-encode). Note that 4K video is usually VP9/AV1 placed in an MP4 container — fine in modern players, occasionally fussy in older ones — which is why it's opt-in.
+LinkSave has no built-in user accounts or password login. Keep it on a private network or place it behind Cloudflare Access, a trusted VPN, or an authenticated reverse proxy. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
-## Staying up to date ("set and forget")
+## License
 
-`yt-dlp` is the part that needs regular updates, because sites change their players. With `YT_DLP_AUTO_UPDATE=true` (the default) the worker updates `yt-dlp` on startup and once a day into the `ytdlp` volume, and **falls back to the version baked into the image** if an update can't be fetched or fails to run — so downloads keep working either way. You can pin the built-in version with `YT_DLP_AUTO_UPDATE=false`.
-
-FFmpeg is not auto-updated and doesn't need to be: it's a stable media tool that isn't affected by site changes. It updates when you rebuild the image (`docker compose build --pull`). Updating the base image and `cloudflared` is also just a periodic rebuild — a tool like Watchtower can automate that if you want zero-touch.
-
-## Security Model
-
-- Cloudflare Access is the authentication layer (no app-local password system). The app validates the Access JWT itself — it does not assume the tunnel makes the API safe.
-- All `/api/*` and `/download/*` endpoints require a validated identity.
-- Job IDs and download tokens are cryptographically random and short-lived.
-- Jobs are linked to the authenticated user identity; another user cannot poll, cancel, or download them.
-- Download links are one-time: the file and job are removed when the response finishes or the client disconnects, and again on expiry/cleanup.
-- User input never becomes command-line flags. UI choices map to fixed backend format presets; the URL is always passed after `--`.
-- URL validation rejects non-http(s) schemes, credentials in URLs, localhost/`.local`, and private, loopback, link-local, carrier-grade-NAT, unique-local, multicast, and reserved IP ranges (IPv4 and IPv6, including IPv4-mapped IPv6 such as the cloud metadata address).
-- yt-dlp/FFmpeg run under a hard wall-clock timeout (SIGTERM then SIGKILL) with an early `--max-filesize` guard, so a hung or oversized download cannot wedge a slot or fill the disk.
-- Containers run as a non-root user with `no-new-privileges`, all Linux capabilities dropped, and a read-only root filesystem (only the media volume, the `ytdlp` update volume, and a `tmpfs` `/tmp` are writable).
-
-### Known residual risks
-
-- **SSRF via redirects / DNS rebinding:** the API validates the submitted URL and its resolved addresses, but yt-dlp performs its own DNS resolution and follows redirects, which this app does not intercept. A hostile site could in principle redirect to, or re-resolve to, an internal address. The container's dropped capabilities, read-only filesystem, and (recommended) isolated Docker network limit the blast radius. For stronger protection, place the worker on a network namespace with no route to internal services / the metadata endpoint.
-- **Auto-update trust:** when `YT_DLP_AUTO_UPDATE` is on, the worker installs the latest `yt-dlp` from PyPI at runtime (the same source the image build uses). This trades a little supply-chain surface for staying current; set it to `false` to pin the built-in version if you prefer.
-- This project does not claim to be perfectly secure. Keep base images updated.
-
-## Limitations
-
-- One video at a time per user by default.
-- The worker processes downloads one at a time (link previews run in a separate loop, so they stay responsive while a download is in progress). Run more `worker` replicas if you need more download throughput.
-- Playlists are deliberately disabled.
-- No retained download library or history.
-- No cookies, private account sessions, DRM bypassing, or CAPTCHA bypassing.
-- `yt-dlp` compatibility depends on public site behavior. Update the pinned `YT_DLP_VERSION` build argument when needed.
-
-## Tests
-
-```bash
-npm test
-```
-
-Tests cover:
-
-- URL / SSRF validation, including IPv4-mapped IPv6 and metadata-address blocking
-- Cloudflare Access JWT validation (signature, issuer, audience, expiry, identity claim)
-- Job ownership, expiry, and the one-time download projection (no token leak until ready)
-- Format-preset mapping and filename sanitization (path traversal / injection)
+LinkSave is available under the [MIT License](LICENSE).
