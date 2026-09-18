@@ -84,8 +84,8 @@ describe('Cloudflare Access JWT validation', () => {
 });
 
 describe('development identity (Access disabled)', () => {
-  function fakeRequest(headers: Record<string, string> = {}): FastifyRequest {
-    return { headers } as unknown as FastifyRequest;
+  function fakeRequest(headers: Record<string, string> = {}, ip?: string): FastifyRequest {
+    return { headers, ip } as unknown as FastifyRequest;
   }
 
   it('synthesizes a stable development user', async () => {
@@ -94,5 +94,14 @@ describe('development identity (Access disabled)', () => {
     const b = await resolveIdentity(fakeRequest({ 'x-dev-user': 'grandma@example.com' }));
     expect(b?.email).toBe('grandma@example.com');
     expect(b?.id).not.toBe(a?.id);
+  });
+
+  it('keys identity by client IP so each device gets its own limits', async () => {
+    const a = await resolveIdentity(fakeRequest({}, '192.168.1.20'));
+    const b = await resolveIdentity(fakeRequest({}, '192.168.1.21'));
+    const c = await resolveIdentity(fakeRequest({}, '192.168.1.20'));
+    expect(a?.id).not.toBe(b?.id);
+    expect(a?.id).toBe(c?.id);
+    expect(a?.email).toBeUndefined();
   });
 });

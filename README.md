@@ -2,7 +2,7 @@
 
 LinkSave is a small, self-hosted app for downloading public videos or audio from a browser. Paste a link, choose a format and quality, and download the file.
 
-It is designed for personal or family use, either on a trusted network or behind Cloudflare Access.
+It is made for personal or family use on a home network.
 
 > Only download content you have permission to save. LinkSave does not support private accounts, cookies, DRM-protected media, or CAPTCHA bypassing.
 
@@ -20,35 +20,30 @@ It is designed for personal or family use, either on a trusted network or behind
 - Optional 4K downloads
 - Link previews before downloading
 - Temporary files are removed after download or expiry
-- Per-user and global download limits
-- Optional Cloudflare Access authentication
+- Per-device and global download limits
+- yt-dlp keeps itself up to date
+
+## No login: bring your own protection
+
+LinkSave has **no accounts, passwords, or login screen**. Anyone who can reach the port can use it. That is fine on a trusted LAN, but do not expose it to the internet as is.
+
+If you want remote access, put it behind something you already trust, for example:
+
+- a VPN such as WireGuard or Tailscale
+- an authenticating reverse proxy (Authelia, Authentik, Caddy or nginx with basic auth)
+- Cloudflare Access (LinkSave can optionally verify its login, see below)
 
 ## Run with Docker
-
-You will need Docker and a Cloudflare Tunnel.
 
 ```bash
 git clone https://github.com/fernando-granco/LinkSave.git
 cd LinkSave
-cp .env.example .env
-```
-
-Edit `.env` and set at least:
-
-```env
-PUBLIC_BASE_URL=https://download.example.com
-CLOUDFLARED_TOKEN=your-tunnel-token
-CF_ACCESS_TEAM_DOMAIN=your-team-name
-CF_ACCESS_AUD=your-access-application-audience
-```
-
-Then start the app:
-
-```bash
 docker compose up -d --build
 ```
 
-The Compose setup runs the web app, API, download worker, Redis, and Cloudflare Tunnel. The app and Redis are not exposed directly to the internet.
+Open `http://<host-ip>:3017`. Copy `.env.example` to `.env` if you want to change the port, bind address, or limits.
+
+The Compose setup runs the web app, API, download worker, and Redis. Redis is not published on the host.
 
 ## Configuration
 
@@ -56,14 +51,34 @@ Common settings are listed below. See [.env.example](.env.example) for every opt
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `REQUIRE_CLOUDFLARE_ACCESS` | `true` | Require a valid Cloudflare Access login |
+| `LINKSAVE_BIND` | `0.0.0.0` | Host address to listen on (use `127.0.0.1` behind a local proxy or tunnel) |
+| `LINKSAVE_PORT` | `3017` | Host port |
 | `MAX_GLOBAL_CONCURRENT_JOBS` | `2` | Maximum active downloads across all users |
-| `MAX_CONCURRENT_JOBS_PER_USER` | `1` | Maximum active downloads per user |
+| `MAX_CONCURRENT_JOBS_PER_USER` | `1` | Maximum active downloads per device (client IP) |
 | `MAX_VIDEO_DURATION_SECONDS` | `7200` | Longest allowed video |
 | `MAX_FILE_SIZE_BYTES` | `2147483648` | Largest allowed file (2 GB) |
 | `JOB_EXPIRATION_SECONDS` | `900` | How long completed downloads remain available |
 | `ALLOW_4K` | `true` | Show the 4K quality option |
 | `YT_DLP_AUTO_UPDATE` | `true` | Update yt-dlp on worker startup and once a day |
+
+## Optional: Cloudflare Access and Tunnel
+
+If you publish LinkSave through Cloudflare, the app can verify the Cloudflare Access login token on every request so nothing bypasses it. Set in `.env`:
+
+```env
+LINKSAVE_BIND=127.0.0.1
+PUBLIC_BASE_URL=https://download.example.com
+REQUIRE_CLOUDFLARE_ACCESS=true
+CF_ACCESS_TEAM_DOMAIN=your-team-name
+CF_ACCESS_AUD=your-access-application-audience
+CLOUDFLARED_TOKEN=your-tunnel-token
+```
+
+Then start with the tunnel included:
+
+```bash
+docker compose --profile cloudflare up -d --build
+```
 
 ## Notes
 
@@ -74,7 +89,7 @@ Common settings are listed below. See [.env.example](.env.example) for every opt
 
 ## Security
 
-LinkSave has no built-in user accounts or password login. Keep it on a private network or place it behind Cloudflare Access, a trusted VPN, or an authenticated reverse proxy. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
 

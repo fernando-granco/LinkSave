@@ -13,7 +13,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       TEMP_DIR: ${TEMP_DIR:-/data/media}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://download.example.com}
-      REQUIRE_CLOUDFLARE_ACCESS: ${REQUIRE_CLOUDFLARE_ACCESS:-true}
+      REQUIRE_CLOUDFLARE_ACCESS: ${REQUIRE_CLOUDFLARE_ACCESS:-false}
       CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
       CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
       MAX_GLOBAL_CONCURRENT_JOBS: ${MAX_GLOBAL_CONCURRENT_JOBS:-2}
@@ -32,8 +32,10 @@ services:
         condition: service_healthy
     volumes:
       - media-tmp:${TEMP_DIR:-/data/media}
-    expose:
-      - "3000"
+    # LinkSave has no login. Bind to a LAN or VPN address you trust, or to
+    # 127.0.0.1 when a tunnel or reverse proxy on this host is the only way in.
+    ports:
+      - "${LINKSAVE_BIND:-0.0.0.0}:${LINKSAVE_PORT:-3017}:3000"
     read_only: true
     tmpfs:
       - /tmp
@@ -65,7 +67,7 @@ services:
       HOME: /tmp
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       TEMP_DIR: ${TEMP_DIR:-/data/media}
-      REQUIRE_CLOUDFLARE_ACCESS: ${REQUIRE_CLOUDFLARE_ACCESS:-true}
+      REQUIRE_CLOUDFLARE_ACCESS: ${REQUIRE_CLOUDFLARE_ACCESS:-false}
       CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
       CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
       MAX_GLOBAL_CONCURRENT_JOBS: ${MAX_GLOBAL_CONCURRENT_JOBS:-2}
@@ -120,15 +122,18 @@ services:
       timeout: 3s
       retries: 5
 
+  # Optional: expose LinkSave through a Cloudflare Tunnel.
+  # Start it with `docker compose --profile cloudflare up -d`.
   cloudflared:
     image: cloudflare/cloudflared:2026.6.0
+    profiles: ["cloudflare"]
     restart: unless-stopped
     # The token is passed only via the environment (read automatically by
     # cloudflared), never on the command line, so it does not leak into
     # `docker inspect` or the host process list.
     command: ["tunnel", "--no-autoupdate", "run"]
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN:?Set CLOUDFLARED_TOKEN in .env}
+      TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN:-}
     security_opt:
       - no-new-privileges:true
     cap_drop:

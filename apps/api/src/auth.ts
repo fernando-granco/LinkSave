@@ -80,8 +80,13 @@ export async function verifyAccessJwt(
   };
 }
 
+/**
+ * Identity when Cloudflare Access verification is off (the default). LinkSave
+ * has no login of its own, so per-user limits are keyed by client IP address.
+ * An `x-dev-user` header overrides this for local development and tests.
+ */
 function developmentIdentity(request: FastifyRequest): UserIdentity {
-  const devUser = firstHeader(request, 'x-dev-user') || 'local-development-user';
+  const devUser = firstHeader(request, 'x-dev-user') || request.ip || 'local-user';
   return {
     id: stableUserId(devUser.toLowerCase()),
     email: devUser.includes('@') ? devUser : undefined,

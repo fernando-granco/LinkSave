@@ -5,6 +5,12 @@ const boolFromString = z
   .optional()
   .transform((value) => value !== 'false');
 
+// Opt-in flags: unset means off.
+const boolFromStringOff = z
+  .string()
+  .optional()
+  .transform((value) => value === 'true');
+
 const intFromString = (fallback: number) =>
   z
     .string()
@@ -29,7 +35,9 @@ const schema = z
     redisUrl: z.string().default('redis://127.0.0.1:6379'),
     tempDir: z.string().default('/tmp/family-downloader'),
     publicBaseUrl: z.string().default('http://localhost:3000'),
-    requireCloudflareAccess: boolFromString,
+    // Off by default: LinkSave has no login of its own. Turn this on only when
+    // the app sits behind Cloudflare Access and you want its JWTs verified.
+    requireCloudflareAccess: boolFromStringOff,
     cfAccessTeamDomain: optionalString,
     cfAccessAud: optionalString,
     maxGlobalConcurrentJobs: intFromString(2),
