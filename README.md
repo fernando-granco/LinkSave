@@ -93,4 +93,4 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
 
-LinkSave is available under the [MIT License](LICENSE).
+LinkSave is available under the [GNU AGPLv3 License](LICENSE).
