@@ -1,5 +1,8 @@
 # LinkSave
 
+[![CI](https://github.com/fernando-granco/LinkSave/actions/workflows/ci.yml/badge.svg)](https://github.com/fernando-granco/LinkSave/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-345a51.svg)](LICENSE)
+
 LinkSave is a small, self-hosted app for downloading public videos or audio from a browser. Paste a link, choose a format and quality, and download the file.
 
 It is made for personal or family use on a home network.
@@ -89,7 +92,7 @@ docker compose --profile cloudflare up -d --build
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+LinkSave has no accounts of its own, so it is designed for a trusted network, not the open internet — see [SECURITY.md](SECURITY.md) for the full deployment model and how to report a vulnerability.
 
 ## License
 
